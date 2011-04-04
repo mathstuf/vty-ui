@@ -94,7 +94,7 @@ drawTreeWidget line path this size ctx
     | fromEnum (region_height size) == line = empty_image
     | otherwise                             =
         case pathLookup path tree of
-            Just t  -> do
+            Just t  ->
                 let summaryAttr =
                         if path == treeSelected this
                             then focusAttr
@@ -106,7 +106,7 @@ drawTreeWidget line path this size ctx
                         if nodeExpanded (T.rootLabel t)
                             then pathFirstChild
                             else pathAfter
-                fullLine <-> drawTreeWidget (line + 1) (nextPath path) this size ctx
+                in fullLine <-> drawTreeWidget (line + 1) (nextPath path) this size ctx
             Nothing ->
                 case pathParent' path of
                     Just ppath -> drawTreeWidget line (pathAfter ppath) this size ctx
