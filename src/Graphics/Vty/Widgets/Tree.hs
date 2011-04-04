@@ -1,8 +1,6 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 
--- | TODO: scroll/cursor movement.
-
 module Graphics.Vty.Widgets.Tree (
       Tree
     , treeData
@@ -12,6 +10,10 @@ module Graphics.Vty.Widgets.Tree (
     , updateTreeWidgetFormat
     , updateTreeWidgetShowRoot
     , updateTreeWidgetTree
+    , ScrollDirection(..)
+    , updateTreeWidgetScroll
+    , MoveDirection(..)
+    , updateTreeWidgetMove
     ) where
 
 import Control.Monad
@@ -90,6 +92,43 @@ updateTreeWidgetTree :: Widget (Tree a) -> (T.Tree a -> T.Tree a) -> IO ()
 updateTreeWidgetTree wRef f =
     updateWidgetState wRef $ \t ->
         t { treeData = f (treeData t) }
+
+data ScrollDirection = ScrollUp
+                     | ScrollDown
+
+updateTreeWidgetScroll :: Widget (Tree a) -> ScrollDirection -> IO ()
+updateTreeWidgetScroll wRef dir =
+    updateWidgetState wRef $ \t ->
+        t { treeViewTop = g t }
+    where
+        g t = case pathLookup ((fst f) (treeViewTop t)) (treeData t) of
+                Just _  -> (fst f) (treeViewTop t)
+                Nothing ->
+                    case pathLookup ((snd f) (treeViewTop t)) (treeData t) of
+                        Just _  -> (snd f) (treeViewTop t)
+                        Nothing -> treeViewTop t
+        f = case dir of
+                ScrollUp   -> (pathBefore, pathParent)
+                ScrollDown -> (pathFirstChild, pathAfter)
+
+data MoveDirection = Parent
+                   | Child
+                   | Previous
+                   | Next
+
+updateTreeWidgetMove :: Widget (Tree a) -> MoveDirection -> IO ()
+updateTreeWidgetMove wRef dir =
+    updateWidgetState wRef $ \t ->
+        t { treeSelected = g t }
+    where
+        g t = case pathLookup (f (treeSelected t)) (treeData t) of
+                Nothing -> treeSelected t
+                Just _  -> f (treeSelected t)
+        f = case dir of
+                Parent   -> pathParent
+                Child    -> pathFirstChild
+                Previous -> pathBefore
+                Next     -> pathAfter
 
 drawTreeWidget :: TreeNode a => Int -> TreePath -> Tree a -> DisplayRegion -> RenderContext -> Image
 drawTreeWidget line path this size ctx
