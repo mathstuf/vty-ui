@@ -14,6 +14,8 @@ module Graphics.Vty.Widgets.Tree (
     , updateTreeWidgetTree
     ) where
 
+import Data.Char
+import Data.Char.WCWidth
 import qualified Data.Tree as T
 import Data.Tree.Path
 
@@ -84,3 +86,57 @@ class TreeNode a where
     -- to the tree.
     nodeFormatChar :: a -> Char -> String
     nodeFormatChar _ _ = ""
+
+nodeFormat :: TreeNode a => a -> String -> String
+nodeFormat _    []           = ""
+nodeFormat node ('%':'%':fs) = '%':nodeFormat node fs
+nodeFormat node ('%':fs)     =
+    case extractFormatSpecifier fs of
+        Just (fm, ch, rest) ->
+            let result = nodeFormatChar node ch
+            in formatString fm result ++ nodeFormat node rest
+        Nothing -> '%':nodeFormat node fs
+nodeFormat node (f:fs)       = f:nodeFormat node fs
+
+data Alignment = AlignLeft
+               | AlignRight
+
+data FormatModifiers = FM
+    { fmAlign :: Alignment
+    , fmLength :: Maybe Int
+    }
+
+extractFormatSpecifier :: String -> Maybe (FormatModifiers, Char, String)
+extractFormatSpecifier fmt = do
+    (align, palign) <- fmtAlign fmt
+    (len, plen) <- fmtLen palign
+    (ch, rest) <- fmtChar plen
+    return (FM align len, ch, rest)
+    where
+        fmtAlign []       = Nothing
+        fmtAlign ('+':fs) = Just (AlignRight, fs)
+        fmtAlign ('-':fs) = Just (AlignLeft, fs)
+        fmtAlign fs       = Just (AlignLeft, fs)
+        fmtLen []         = Nothing
+        fmtLen fss@(f:_)  | isNumber f = Just (Just $ read len, rest)
+                          | otherwise  = Just (Nothing, fss)
+            where
+                (len, rest) = span isNumber fss
+        fmtChar []        = Nothing
+        fmtChar (f:fs)    | isAlpha f = Just (f, fs)
+                          | otherwise = Nothing
+
+formatString :: FormatModifiers -> String -> String
+formatString fm str =
+    case fmAlign fm of
+        AlignLeft  -> base ++ padding
+        AlignRight -> padding ++ base
+    where
+        len = wcswidth str
+        (padding, base) =
+            case fmLength fm of
+                Just flen ->
+                    if flen < len
+                        then ("", take flen str)
+                        else (replicate (flen - len) ' ', str)
+                Nothing   -> ("", str)
