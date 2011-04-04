@@ -14,6 +14,8 @@ module Graphics.Vty.Widgets.Tree (
     , updateTreeWidgetTree
     ) where
 
+import Control.Monad
+
 import Data.Char
 import Data.Char.WCWidth
 import Data.Maybe (isJust, fromMaybe)
@@ -106,7 +108,11 @@ drawTreeWidget line path this size ctx
                         if nodeExpanded (T.rootLabel t)
                             then pathFirstChild
                             else pathAfter
-                in fullLine <-> drawTreeWidget (line + 1) (nextPath path) this size ctx
+                    nimg =
+                        if pathLength path == 0
+                            then empty_image
+                            else drawTreeWidget (line + 1) (nextPath path) this size ctx
+                in fullLine <-> nimg
             Nothing ->
                 case pathParent' path of
                     Just ppath -> drawTreeWidget line (pathAfter ppath) this size ctx
@@ -115,9 +121,10 @@ drawTreeWidget line path this size ctx
             tree = treeData this
             treeIndent ipath = fromMaybe "" $ do
                 ppath <- pathParent' ipath
-                _ <- pathParent' ppath
+                pppath <- pathParent' ppath
+                _ <- when (not $ treeShowRoot this) $ pathParent' pppath >> return ()
                 let treeLine =
-                        if isJust $ pathLookup (pathAfter ppath) tree
+                        if pathLength ppath > 0 && (isJust $ pathLookup (pathAfter ppath) tree)
                             then skinVertical ctxSkin
                             else ' '
                 Just $ treeIndent ppath ++ (treeLine:' ':' ':[])
@@ -129,9 +136,13 @@ drawTreeWidget line path this size ctx
             treeArrow = treeJoin ctxSkin:skinHorizontal ctxSkin:'>':[]
             summaryPrefix =
                 let len = pathLength path
-                in if len > 1
+                in if len > minPathLen
                     then treeIndent path ++ treeArrow
                     else ""
+            minPathLen =
+                if treeShowRoot this
+                    then 0
+                    else 1
             treeLink =  string (treeLinkAttr this) summaryPrefix
 
 -- | Typeclass for a node in a tree widget.
