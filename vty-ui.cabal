@@ -81,6 +81,7 @@ Library
     filepath >= 1.1 && < 1.3,
     unix >= 2.4 && < 2.5,
     mtl >= 2.0 && < 2.1
+    --wcwidth >= 0.0 && < 0.1
 
   GHC-Options:       -Wall
 
@@ -109,6 +110,7 @@ Library
           Graphics.Vty.Widgets.ProgressBar
           Graphics.Vty.Widgets.DirBrowser
   Other-Modules:
+          Data.Char.WCWidth
           Text.Trans.Tokenize
 
 Executable vty-ui-tests
